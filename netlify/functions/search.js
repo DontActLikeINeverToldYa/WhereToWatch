@@ -18,11 +18,10 @@ exports.handler = async function handler(event) {
     url.searchParams.set("language", language);
     url.searchParams.set("page", page);
 
+    const headers = tmdbHeadersOrApiKey(token, url);
+
     const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
 
     const bodyText = await res.text();
@@ -41,6 +40,22 @@ exports.handler = async function handler(event) {
   } catch (e) {
     return json(500, { error: e?.message || "Unknown error" });
   }
+}
+
+function tmdbHeadersOrApiKey(token, url) {
+  // TMDB v4 Read Access Token is a JWT-like string (has dots). v3 API key is typically a 32-char hex.
+  const t = String(token || "").trim();
+  if (t.includes(".")) {
+    return {
+      Authorization: `Bearer ${t}`,
+      "Content-Type": "application/json",
+    };
+  }
+
+  url.searchParams.set("api_key", t);
+  return {
+    "Content-Type": "application/json",
+  };
 }
 
 function json(statusCode, data) {
