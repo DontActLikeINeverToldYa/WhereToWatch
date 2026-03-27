@@ -207,9 +207,9 @@
 
 <script>
 // ─── CONFIG ───
-const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0MjE5Mzk2MDRkNTExMDAwM2EzNzRhNDZkOWY5MDYyZiIsIm5iZiI6MTc3NDUzNzUyNS43MSwic3ViIjoiNjljNTRiMzVkMDhjYmJmYzQ1NjJjY2UwIiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.V16F6KJQBsYwFqZ2zcIH55K06zditr-mcEVjNCKKans";
 const IMG = "https://image.tmdb.org/t/p";
-const HEADERS = { Authorization: `Bearer ${TMDB_TOKEN}`, "Content-Type": "application/json" };
+
+const API_BASE = "/api";
 
 const COUNTRIES = {
   DE:"Germany",US:"United States",GB:"United Kingdom",FR:"France",ES:"Spain",
@@ -248,9 +248,16 @@ document.getElementById("searchInput").addEventListener("keydown", e => {
 document.getElementById("searchInput").focus();
 
 // ─── API ───
-async function tmdbFetch(path) {
-  const res = await fetch(`https://api.themoviedb.org/3${path}`, { headers: HEADERS });
-  if (!res.ok) throw new Error(`TMDB ${res.status}`);
+async function apiFetch(path) {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try {
+      const err = await res.json();
+      if (err?.error) msg = err.error;
+    } catch (_) {}
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -264,7 +271,7 @@ async function doSearch() {
   document.getElementById("searchBtn").disabled = true;
 
   try {
-    const data = await tmdbFetch(`/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=1`);
+    const data = await apiFetch(`/search?query=${encodeURIComponent(q)}&language=en-US&page=1`);
     const movies = (data.results || []).slice(0, 12);
     hide("loading");
     document.getElementById("searchBtn").disabled = false;
@@ -314,8 +321,8 @@ async function selectMovie(id) {
 
   try {
     const [movie, provData] = await Promise.all([
-      tmdbFetch(`/movie/${id}?language=en-US`),
-      tmdbFetch(`/movie/${id}/watch/providers`),
+      apiFetch(`/movie?id=${encodeURIComponent(id)}&language=en-US`),
+      apiFetch(`/providers?id=${encodeURIComponent(id)}`),
     ]);
     renderDetail(movie, provData.results || {});
     detail.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -326,8 +333,8 @@ async function selectMovie(id) {
 
 async function loadProviders(id) {
   try {
-    const movie = await tmdbFetch(`/movie/${id}?language=en-US`);
-    const provData = await tmdbFetch(`/movie/${id}/watch/providers`);
+    const movie = await apiFetch(`/movie?id=${encodeURIComponent(id)}&language=en-US`);
+    const provData = await apiFetch(`/providers?id=${encodeURIComponent(id)}`);
     renderDetail(movie, provData.results || {});
   } catch(e) { /* silently fail on country change */ }
 }
